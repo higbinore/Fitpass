@@ -35,6 +35,25 @@ export type Env = z.infer<typeof envSchema>;
 let cached: Env | null = null;
 
 /**
+ * The database connection string on its own.
+ *
+ * getEnv() validates everything FitPass will eventually need (auth, Paystack,
+ * Resend). Until those secrets exist, the database is the only setting the app
+ * requires, so database code uses this instead of the full schema.
+ */
+export function getDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL;
+
+  if (!url) {
+    throw new Error(
+      "DATABASE_URL is not set. Add it to .env.local for local development, or to the Vercel project settings for deployments.",
+    );
+  }
+
+  return url;
+}
+
+/**
  * Returns the validated environment, or throws with the names of the settings
  * that are missing or invalid. It never includes the values in the message.
  */

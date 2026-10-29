@@ -1,5 +1,10 @@
-import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
+import Link from "next/link";
+import { connection } from "next/server";
+import { asc, eq } from "drizzle-orm";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -7,6 +12,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getDb } from "@/lib/db";
+import { formatNaira } from "@/lib/money";
+import { plans } from "@/lib/schema";
 
 const steps = [
   {
@@ -22,6 +30,108 @@ const steps = [
     body: "Read the code to the front desk. It is checked in seconds, and you are in.",
   },
 ];
+
+/**
+ * Reads the active plans on every request. Uncached data lives inside a
+ * Suspense boundary so the rest of the page can still be prerendered.
+ */
+async function PlanList() {
+  // Render at request time: the plans are live data, and opening the Neon
+  // connection during prerendering is not allowed.
+  await connection();
+
+  let availablePlans: {
+    id: string;
+    name: string;
+    durationDays: number;
+    priceKobo: number;
+    description: string | null;
+  }[];
+
+  try {
+    availablePlans = await getDb()
+      .select({
+        id: plans.id,
+        name: plans.name,
+        durationDays: plans.durationDays,
+        priceKobo: plans.priceKobo,
+        description: plans.description,
+      })
+      .from(plans)
+      .where(eq(plans.isActive, true))
+      .orderBy(asc(plans.sortOrder), asc(plans.priceKobo));
+  } catch (error) {
+    console.error(
+      "Failed to load plans:",
+      error instanceof Error ? error.message : "unknown error",
+    );
+
+    return (
+      <Card>
+        <CardContent>
+          <p className="text-base text-muted-foreground">
+            Plans are unavailable right now. Please ask at the front desk.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (availablePlans.length === 0) {
+    return (
+      <Card>
+        <CardContent>
+          <p className="text-base text-muted-foreground">
+            No plans are available right now. Please ask at the front desk and
+            they will help you join.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <ul className="mt-4 space-y-3">
+      {availablePlans.map((plan) => (
+        <li key={plan.id}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{plan.name}</CardTitle>
+              {plan.description ? (
+                <CardDescription className="text-base">
+                  {plan.description}
+                </CardDescription>
+              ) : null}
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="font-heading text-2xl font-bold text-foreground">
+                  {formatNaira(plan.priceKobo)}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {plan.durationDays} {plan.durationDays === 1 ? "day" : "days"}
+                </p>
+              </div>
+              <Button asChild variant="accent">
+                <Link href="/signup">Join now</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PlansLoading() {
+  return (
+    <Card className="mt-4">
+      <CardContent>
+        <p className="text-base text-muted-foreground">Loading plans…</p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Home() {
   return (
@@ -52,9 +162,19 @@ export default function Home() {
         </p>
         <div className="mt-6">
           <Button asChild>
-            <a href="#how-it-works">How it works</a>
+            <a href="#plans">See plans</a>
           </Button>
         </div>
+      </section>
+
+      <section id="plans" className="mt-12 scroll-mt-6">
+        <h2 className="text-2xl">Plans</h2>
+        <p className="mt-2 text-base text-muted-foreground">
+          Pay once and your code stays active for the whole period.
+        </p>
+        <Suspense fallback={<PlansLoading />}>
+          <PlanList />
+        </Suspense>
       </section>
 
       <section id="how-it-works" className="mt-12 scroll-mt-6">
