@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* FitPass design tokens — see STYLE.md. Do not introduce colours outside this list. */
+/* FitPass green and orange design tokens, shared across every workspace. */
 @theme inline {
   --font-sans: var(--font-inter);
   --font-heading: var(--font-poppins);
@@ -96,5 +96,23 @@
   h3,
   h4 {
     @apply font-heading font-bold text-foreground;
+  }
+
+  :where(button, a, input, select, textarea) {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :where(input, select, textarea) {
+    max-width: 100%;
+  }
+
+  :where(button, a, input, select, textarea):focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--ring) 45%, transparent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    color: #111827;
+    background: #dcfce7;
   }
 }

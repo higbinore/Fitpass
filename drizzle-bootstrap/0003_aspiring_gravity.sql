@@ -1,0 +1,2 @@
+ALTER TABLE "platform_packages" DROP CONSTRAINT "platform_package_values_positive";--> statement-breakpoint
+ALTER TABLE "platform_packages" ADD CONSTRAINT "platform_package_values_positive" CHECK ("platform_packages"."price_kobo" > 0 and "platform_packages"."active_member_limit" > 0 and "platform_packages"."admin_account_limit" > 0);

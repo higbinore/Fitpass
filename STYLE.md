@@ -25,7 +25,7 @@
 | Background | `#F9FAFB` | App background and light page surfaces |
 | Success green | `#16A34A` | Success states and valid membership |
 | Danger red | `#DC2626` | Errors, expired membership, and destructive actions |
-| White | `#FFFFFF` | Cards and text on dark/green buttons |
+| White | `#FFFFFF` | Cards and text on green buttons |
 
 ### Contrast rules
 - Use **white text on the main green** for primary buttons.
