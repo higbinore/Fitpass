@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">FITPASS ELITE free weights area</title>
+  <desc id="desc">Original illustration of a premium free weights room with racks, benches and dumbbells.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#203b32"/><stop offset="1" stop-color="#0e211f"/></linearGradient>
+    <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#75806a"/><stop offset="1" stop-color="#303a35"/></linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <path d="M0 478 1200 415v285H0z" fill="url(#ground)"/>
+  <path d="M40 120h1120M40 230h1120" stroke="#668072" stroke-width="4" opacity=".7"/>
+  <g stroke="#dbe2cf" stroke-width="14" fill="none">
+    <path d="M125 455V185h245v270M155 185v-52M340 185v-52M125 255h245M170 455V300M325 455V300"/>
+    <path d="M470 430V160h240v270M505 160v-42M675 160v-42M470 225h240M510 430V276M670 430V276"/>
+    <path d="M805 412V198h260v214M845 198v-45M1025 198v-45M805 260h260M850 412V310M1020 412V310"/>
+  </g>
+  <g fill="#b6f34a">
+    <rect x="130" y="270" width="24" height="52" rx="7"/><rect x="342" y="270" width="24" height="52" rx="7"/>
+    <rect x="475" y="241" width="24" height="52" rx="7"/><rect x="683" y="241" width="24" height="52" rx="7"/>
+    <rect x="810" y="276" width="24" height="52" rx="7"/><rect x="1036" y="276" width="24" height="52" rx="7"/>
+  </g>
+  <g fill="#121a18"><path d="M215 452h170v18H215zM565 428h170v18H565zM895 410h170v18H895z"/><path d="M226 452v-72h16v72m116 0v-72h16v72M576 428v-72h16v72m116 0v-72h16v72M906 410v-72h16v72m116 0v-72h16v72"/></g>
+  <g fill="#e4e8d9"><circle cx="268" cy="520" r="18"/><circle cx="303" cy="520" r="18"/><circle cx="619" cy="500" r="18"/><circle cx="654" cy="500" r="18"/><circle cx="951" cy="483" r="18"/><circle cx="986" cy="483" r="18"/></g>
+  <path d="M0 566 1200 505M50 700l275-155m130 155 230-175m210 175 165-160" stroke="#eff0dc" stroke-width="3" opacity=".32"/>
+  <rect x="48" y="40" width="305" height="54" rx="16" fill="#0f7b4f" opacity=".95"/>
+  <text x="72" y="76" fill="#f7f7f0" font-family="Arial,sans-serif" font-size="24" font-weight="700" letter-spacing="3">FREE WEIGHTS</text>
+</svg>

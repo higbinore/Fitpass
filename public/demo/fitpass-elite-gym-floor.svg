@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">FITPASS ELITE gym floor</title>
+  <desc id="desc">Original illustration of a spacious premium gym floor with strength stations and tall windows.</desc>
+  <defs>
+    <linearGradient id="wall" x2="0" y2="1"><stop stop-color="#152b2b"/><stop offset="1" stop-color="#294d40"/></linearGradient>
+    <linearGradient id="floor" x2="0" y2="1"><stop stop-color="#bbbea5"/><stop offset="1" stop-color="#515f50"/></linearGradient>
+    <linearGradient id="glass" x2="0" y2="1"><stop stop-color="#c6eadb"/><stop offset="1" stop-color="#6ba88c"/></linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#wall)"/>
+  <path d="M0 450 1200 360v340H0z" fill="url(#floor)"/>
+  <path d="M90 74h330v300H90zM460 74h330v274H460zM830 74h280v248H830z" fill="url(#glass)" stroke="#e6eadb" stroke-width="12"/>
+  <path d="M254 74v300M625 74v274M970 74v248M90 220h330M460 210h330M830 195h280" stroke="#e6eadb" stroke-width="9" opacity=".85"/>
+  <g fill="#183a31" stroke="#d4d9c7" stroke-width="10">
+    <path d="M115 400V310h180v90M150 310v-90h18v90M240 310v-90h18v90"/>
+    <path d="M385 416V280h180v136M425 280v-78h18v78M510 280v-78h18v78"/>
+    <path d="M670 395V292h170v103M705 292v-80h18v80M790 292v-80h18v80"/>
+    <path d="M900 374V285h120v89M930 285v-62h17v62M985 285v-62h17v62"/>
+  </g>
+  <g fill="#b6f34a"><circle cx="156" cy="402" r="26"/><circle cx="270" cy="402" r="26"/><circle cx="427" cy="418" r="26"/><circle cx="540" cy="418" r="26"/><circle cx="710" cy="397" r="24"/><circle cx="810" cy="397" r="24"/></g>
+  <path d="M0 505 1200 418M0 588 1200 520M205 700l260-280m85 280 210-290m150 290 120-270" stroke="#eff0dc" stroke-width="3" opacity=".38"/>
+  <rect x="48" y="40" width="305" height="54" rx="16" fill="#0f7b4f" opacity=".95"/>
+  <text x="72" y="76" fill="#f7f7f0" font-family="Arial,sans-serif" font-size="24" font-weight="700" letter-spacing="3">FITPASS ELITE</text>
+</svg>
