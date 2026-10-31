@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, count, countDistinct, desc, eq, inArray, isNull, lte } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, inArray, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { AuthorizationError, requireVerifiedUser, requireGymOwner } from "@/lib/authz";
@@ -9,7 +9,7 @@ import { getPaymentMode } from "@/lib/payment-mode";
 import { approvedFitPassPackagePriceKobo, fitPassPackageSelectionSchema } from "@/lib/platform-package-policy";
 import { gyms, gymMembershipRoles, gymMemberships, gymOnboarding, paymentReferenceRegistry, platformPackages, platformPayments, platformSubscriptions } from "@/lib/schema";
 import { hasActiveGymRoleInTransaction } from "@/lib/transaction-authz";
-import { trialDaysRemaining } from "@/lib/trial-policy";
+import { resolvePlatformSubscriptionStatus, trialDaysRemaining } from "@/lib/trial-policy";
 
 /** Owner-only view of this gym's FitPass subscription, usage, and billing history. */
 export async function GET(request: Request, context: { params: Promise<{ gymId: string }> }) {
@@ -35,17 +35,13 @@ export async function GET(request: Request, context: { params: Promise<{ gymId: 
     ]);
     const [paymentCount] = await db.select({ total: count() }).from(platformPayments).where(eq(platformPayments.gymId, gymId));
     const now = new Date();
-    if (subscription?.status === "trialing" && subscription.currentPeriodEnd <= now) {
-      await db.update(platformSubscriptions).set({ status: "expired", updatedAt: now })
-        .where(and(eq(platformSubscriptions.id, subscription.id), eq(platformSubscriptions.status, "trialing"), lte(platformSubscriptions.currentPeriodEnd, now)));
-    }
     const [onboarding] = await db.select({ trialActivatedAt: gymOnboarding.trialActivatedAt, trialExpiresAt: gymOnboarding.trialExpiresAt })
       .from(gymOnboarding).where(eq(gymOnboarding.gymId, gymId)).limit(1);
     const trialStatus = onboarding?.trialActivatedAt
       ? onboarding.trialExpiresAt && onboarding.trialExpiresAt > now ? "trialing" : "expired"
       : "not_started";
     const billingSubscription = subscription
-      ? { ...subscription, status: subscription.status === "trialing" && subscription.currentPeriodEnd <= now ? "expired" : subscription.status, trialDaysRemaining: subscription.status === "trialing" ? trialDaysRemaining(subscription.currentPeriodEnd, now) : null }
+      ? { ...subscription, status: resolvePlatformSubscriptionStatus(subscription.status, subscription.currentPeriodEnd, now), trialDaysRemaining: resolvePlatformSubscriptionStatus(subscription.status, subscription.currentPeriodEnd, now) === "trialing" ? trialDaysRemaining(subscription.currentPeriodEnd, now) : null }
       : null;
     return NextResponse.json({ subscription: billingSubscription, trial: { status: trialStatus, activatedAt: onboarding?.trialActivatedAt ?? null, expiresAt: onboarding?.trialExpiresAt ?? null, daysRemaining: onboarding?.trialExpiresAt && trialStatus === "trialing" ? trialDaysRemaining(onboarding.trialExpiresAt, now) : 0 }, usage: { activeMembers: members.total, activeAdminAccounts: admins.total }, payments, paymentHistory: { page, pageSize, total: paymentCount.total, hasMore: page * pageSize < paymentCount.total } });
   } catch (error) {
