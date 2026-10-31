@@ -1,5 +1,7 @@
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool as LocalPostgresPool } from "pg";
+import { drizzle as drizzleLocalPostgres } from "drizzle-orm/node-postgres";
 import { getDatabaseUrl } from "./env";
 import * as schema from "./schema";
 
@@ -15,6 +17,18 @@ import * as schema from "./schema";
  * variable name only — never the value.
  */
 function createDatabase(connectionString: string) {
+  const url = new URL(connectionString);
+  const isLoopback = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(
+    url.hostname.toLowerCase(),
+  );
+
+  // Local PostgreSQL has no Neon WebSocket proxy. Keep the Neon serverless
+  // driver for hosted databases and use node-postgres only for loopback URLs.
+  if (isLoopback) {
+    const pool = new LocalPostgresPool({ connectionString });
+    return drizzleLocalPostgres(pool, { schema });
+  }
+
   const pool = new Pool({ connectionString });
   return drizzle(pool, { schema });
 }

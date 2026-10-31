@@ -21,14 +21,14 @@ On Windows, use the PostgreSQL 18 client tools (`createdb`, `pg_restore`,
 previously verified local instance, create a database named `fitpass_demo`:
 
 ```powershell
-createdb.exe -h 127.0.0.1 -p 55432 -U postgres fitpass_demo
+createdb.exe -h 127.0.0.1 -p 55433 -U postgres fitpass_demo
 ```
 
 Restore into that empty local database only (substitute the path to the
 independent backup file; keep that file outside the Git repository):
 
 ```powershell
-pg_restore.exe --exit-on-error --no-owner --no-privileges -h 127.0.0.1 -p 55432 -U postgres -d fitpass_demo 'D:\FitPass-Backups\fitpass-before-migration.dump'
+pg_restore.exe --exit-on-error --no-owner --no-privileges -h 127.0.0.1 -p 55433 -U postgres -d fitpass_demo 'D:\FitPass-Backups\fitpass-before-migration.dump'
 ```
 
 If PostgreSQL requests a password, enter it at the hidden prompt. Do not put it
@@ -42,21 +42,17 @@ preservation check fails, stop and restore a fresh disposable copy.
 
 ### Supplying a local-only connection in PowerShell
 
-Use a database URL only for the local disposable database. The password is
-entered through a hidden prompt, never as part of a command or command history:
+Use the local PostgreSQL password file rather than placing a password in a URL
+or command history. For the configured Windows instance, point libpq and
+node-postgres at the existing password file and use a passwordless URL:
 
 ```powershell
-$dbPassword = Read-Host 'Local PostgreSQL password (hidden)' -AsSecureString
-$plainPassword = [System.Net.NetworkCredential]::new('', $dbPassword).Password
-$escapedPassword = [System.Uri]::EscapeDataString($plainPassword)
-$env:DATABASE_URL = "postgresql://postgres:$escapedPassword@127.0.0.1:55432/fitpass_demo?sslmode=disable"
-Remove-Variable plainPassword, escapedPassword, dbPassword
+$env:PGPASSFILE = Join-Path $env:APPDATA 'postgresql\pgpass.conf'
+$env:DATABASE_URL = 'postgresql://postgres@127.0.0.1:55433/fitpass_demo?sslmode=disable'
 ```
 
-The connection URL remains only in this PowerShell process environment and is
-not printed. Keep this terminal open for the demo. If the local server uses a
-different username, port, or authentication setup, adjust those non-secret
-connection details to match that local instance. Do not use a Neon URL.
+These variables stay in the current PowerShell process. Keep the terminal open
+for the demo. Do not use a Neon URL.
 
 ## Run the local setup
 
@@ -138,8 +134,13 @@ credential. Never set it in production.
 - No live Neon hostname can pass the runner's connection guard.
 - The script does not read `.env.local` or `.env.local.docx`; set the local URL
   directly in the PowerShell process environment as above.
-- Migration execution, local restore, and browser workflows remain **UNVERIFIED**
-  until someone runs them against the separately restored local copy.
+- Phase 2a restored the independent backup into `rehearsal_test` and
+  `demo_test` on `127.0.0.1:55433`, verified both restores, manually rehearsed
+  migrations in `rehearsal_test`, and ran this demo setup against the separate
+  `demo_test` copy. See `docs/phase-2a-report.md` for evidence and limitations.
+- Interactive browser review and screenshots remain **UNVERIFIED** because
+  browser control was disabled in the Codex Work settings. HTTP smoke checks
+  and the route integration suite are not a substitute for visual review.
 - This runner expects the reviewed pre-migration copy. It deliberately refuses
   an empty database instead of fabricating the four source plan rows or
   claiming to have reproduced their original timestamps and descriptions.

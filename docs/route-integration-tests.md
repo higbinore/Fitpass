@@ -26,4 +26,8 @@ database. Some scenarios deliberately send writes (invitation acceptance and
 webhook replay), so use disposable fixture rows and restore a fresh copy for a
 clean repeat.
 
-The test suite has not been run against a database in this phase.
+Phase 2a ran all nine route integration tests against the disposable local
+`demo_test` database at `127.0.0.1:55433`; all passed. The fixture identities,
+cookies, invitation token, and webhook reference were generated for local-only
+tests and were not committed. See `docs/phase-2a-report.md` for the scenarios,
+fixture summary, command, and full suite result.

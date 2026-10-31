@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { hashPassword } from "better-auth/crypto";
@@ -51,7 +51,7 @@ function redacted(value: string, connectionString: string): string {
 
 function childEnvironment(extra: Partial<NodeJS.ProcessEnv> = {}): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = { NODE_ENV: process.env.NODE_ENV ?? "development" };
-  for (const key of ["PATH", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "LANG", "LC_ALL"]) {
+  for (const key of ["PATH", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "LANG", "LC_ALL", "APPDATA", "PGPASSFILE", "USERPROFILE", "HOME"]) {
     if (process.env[key]) environment[key] = process.env[key];
   }
   return Object.assign(environment, extra);
@@ -145,20 +145,70 @@ function verifyPlanPreservation(before: string, databaseUrl: string) {
 }
 
 function runMigrations(databaseUrl: string) {
-  const drizzleKit = resolve(ROOT, "node_modules/drizzle-kit/bin.cjs");
-  if (!existsSync(drizzleKit)) fail("The installed Drizzle Kit executable is missing. Run the project dependency installation before the local demo.");
-  const result = spawnSync(process.execPath, [drizzleKit, "migrate", "--config=drizzle.config.ts"], {
-    cwd: ROOT,
-    env: childEnvironment({ DATABASE_URL: databaseUrl, DOTENV_CONFIG_PATH: process.platform === "win32" ? "NUL" : "/dev/null" }),
-    encoding: "utf8",
-    maxBuffer: 12 * 1024 * 1024,
-    windowsHide: true,
-  });
-  if (result.error || result.status !== 0) {
-    const diagnostic = redacted(`${result.stderr ?? ""}${result.stdout ?? ""}`, databaseUrl).trim();
-    fail(`Drizzle migration rehearsal failed${diagnostic ? `: ${diagnostic}` : "."} No production target is accepted by this script.`);
+  const journalPath = resolve(MIGRATIONS_DIR, "meta/_journal.json");
+  if (!existsSync(journalPath)) fail("The staged Drizzle migration journal is missing.");
+
+  const journal = JSON.parse(readFileSync(journalPath, "utf8")) as {
+    entries?: Array<{ tag: string; when: number }>;
+  };
+  if (!Array.isArray(journal.entries) || journal.entries.length === 0) {
+    fail("The staged Drizzle migration journal is empty or invalid.");
   }
-  process.stdout.write(redacted(result.stdout ?? "", databaseUrl));
+
+  const migrationTableExists = psql(
+    "SELECT to_regclass('public.__drizzle_migrations') IS NOT NULL",
+    databaseUrl,
+    true,
+  ) === "t";
+  const applied = migrationTableExists
+    ? JSON.parse(psql(
+        "SELECT coalesce(json_agg(json_build_array(hash, created_at::text) ORDER BY created_at), '[]'::json)::text FROM public.__drizzle_migrations",
+        databaseUrl,
+        true,
+      )) as Array<[string, string]>
+    : [];
+  const appliedByTimestamp = new Map(applied.map(([hash, timestamp]) => [timestamp, hash]));
+
+  for (const entry of journal.entries) {
+    const migrationPath = resolve(MIGRATIONS_DIR, `${entry.tag}.sql`);
+    if (!existsSync(migrationPath)) fail(`Migration ${entry.tag} is missing from the local Drizzle folder.`);
+    const migrationSql = readFileSync(migrationPath, "utf8");
+    const hash = createHash("sha256").update(migrationSql).digest("hex");
+    const timestamp = String(entry.when);
+    const priorHash = appliedByTimestamp.get(timestamp);
+
+    if (priorHash) {
+      if (priorHash !== hash) fail(`Recorded migration ${entry.tag} has a different file hash; no migration was replayed.`);
+      process.stdout.write(`Local migration already applied: ${entry.tag}\n`);
+      continue;
+    }
+
+    if (applied.some(([, appliedTimestamp]) => Number(appliedTimestamp) > entry.when)) {
+      fail(`Migration history skips ${entry.tag}; inspect this disposable database before continuing.`);
+    }
+
+    const historyTable = "CREATE TABLE IF NOT EXISTS public.__drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint)";
+    const recordMigration = `INSERT INTO public.__drizzle_migrations (hash, created_at) VALUES ('${hash}', ${entry.when})`;
+    const connectionEnvironment = psqlEnvironment(databaseUrl);
+    const result = spawnSync("psql", [
+      "-X", "-1", "-v", "ON_ERROR_STOP=1", "-c", historyTable,
+      "-f", migrationPath, "-c", recordMigration,
+    ], {
+      cwd: ROOT,
+      env: connectionEnvironment,
+      encoding: "utf8",
+      maxBuffer: 12 * 1024 * 1024,
+      windowsHide: true,
+    });
+    if (result.error || result.status !== 0) {
+      const diagnostic = redacted(`${result.stderr ?? ""}${result.stdout ?? ""}`, databaseUrl).trim();
+      fail(`Local migration ${entry.tag} failed${diagnostic ? `: ${diagnostic}` : "."} Restore a fresh disposable copy before retrying.`);
+    }
+
+    applied.push([hash, timestamp]);
+    appliedByTimestamp.set(timestamp, hash);
+    process.stdout.write(`Applied local migration: ${entry.tag}\n`);
+  }
 }
 
 function demoSeedSql(ids: Record<DemoUserKey, string>, membershipIds: Record<Exclude<DemoUserKey, "admin">, string>, passwordHash: string) {

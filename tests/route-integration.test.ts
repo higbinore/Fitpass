@@ -118,7 +118,8 @@ test("invitation acceptance rejects the wrong email and cannot be replayed", { s
   assert.ok(accepted.status === 200 || accepted.status === 201);
 
   const replay = await api("/api/invitations/accept", cookies().matchingInvitee, "POST", { token: fixtures!.inviteToken });
-  assert.ok(replay.status === 400 || replay.status === 409);
+  // The acceptance route intentionally masks used invitations as not found.
+  assert.ok(replay.status === 400 || replay.status === 404 || replay.status === 409);
 });
 
 test("the final active gym owner cannot be revoked", { skip: integrationSkip }, async () => {
