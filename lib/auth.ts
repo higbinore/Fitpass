@@ -29,6 +29,14 @@ function createAuth() {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      sendResetPassword: async ({ user, url }) => {
+        await sendTransactionalEmail({
+          to: user.email,
+          subject: "Reset your FitPass password",
+          text: `Reset your FitPass password by opening this link within one hour:\n\n${url}\n\nIf you did not request a password reset, you can ignore this email.`,
+        });
+      },
     },
     emailVerification: {
       sendOnSignUp: true,
