@@ -18,6 +18,7 @@ function makeApi({
   sessionUserId = userA as string | null,
   memberships = [] as GymMembershipRecord[],
   platformAdminIds = [] as string[],
+  suspendedPlatformAdminIds = [] as string[],
   memberRecords = [] as MemberOwnershipRecord[],
 } = {}) {
   const membershipLookups: Array<{ userId: string; gymId: string }> = [];
@@ -38,7 +39,7 @@ function makeApi({
     async findGymStatus(gymId) { return gymStatuses.get(gymId) ?? null; },
     async findPlatformAdminUserId(userId) {
       platformAdminLookups.push(userId);
-      return platformAdminIds.includes(userId) ? userId : null;
+      return platformAdminIds.includes(userId) && !suspendedPlatformAdminIds.includes(userId) ? userId : null;
     },
     async findMember(memberId, gymId, userId) {
       memberLookups.push({ memberId, userId });
@@ -154,6 +155,10 @@ test("platform-admin access queries the authenticated user's platform record", a
     userId: userA,
   });
   assert.deepEqual(provisioned.platformAdminLookups, [userA]);
+
+  const suspended = makeApi({ platformAdminIds: [userA], suspendedPlatformAdminIds: [userA] });
+  await expectDenied(suspended.api.requirePlatformAdmin());
+  assert.deepEqual(suspended.platformAdminLookups, [userA]);
 });
 
 test("member ownership is checked against a database-loaded record and session user", async () => {

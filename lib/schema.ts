@@ -118,6 +118,7 @@ export const platformAdmins = pgTable("platform_admins", {
   userId: text("user_id").primaryKey().references(() => authUsers.id, { onDelete: "restrict" }),
   createdAt: createdAt(),
   createdByUserId: text("created_by_user_id"),
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
 });
 
 export const platformSettings = pgTable("platform_settings", {

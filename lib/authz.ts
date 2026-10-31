@@ -60,7 +60,7 @@ const authorization = createAuthorizationApi({
     const [admin] = await getDb()
       .select({ userId: platformAdmins.userId })
       .from(platformAdmins)
-      .where(eq(platformAdmins.userId, userId))
+      .where(and(eq(platformAdmins.userId, userId), isNull(platformAdmins.suspendedAt)))
       .limit(1);
 
     return admin?.userId ?? null;
