@@ -8,9 +8,12 @@ import { getAuthEnv } from "@/lib/env";
 import { getDb } from "@/lib/db";
 import { INITIAL_ADMIN_SETUP_COMPLETED_ACTION, INITIAL_ADMIN_SETUP_IDENTIFIER, INITIAL_ADMIN_SETUP_LOCK, initialAdminSetupClaimId, readInitialAdminSetupAvailability } from "@/lib/platform-setup";
 import { auditEvents, authUsers, authVerifications, platformAdmins } from "@/lib/schema";
-import { canBeginInitialPlatformAdminSetup, initialPlatformAdminSetupSchema } from "@/lib/platform-setup-policy";
+import { canBeginInitialPlatformAdminSetup, initialPlatformAdminSetupSchema, isPublicPlatformAdminSetupEnabled } from "@/lib/platform-setup-policy";
 
 export async function GET() {
+  if (!isPublicPlatformAdminSetupEnabled()) {
+    return NextResponse.json({ available: false, pending: false }, { headers: { "Cache-Control": "no-store" } });
+  }
   try {
     const state = await readInitialAdminSetupAvailability();
     return NextResponse.json({ available: canBeginInitialPlatformAdminSetup(state), pending: state.pendingClaimExists }, { headers: { "Cache-Control": "no-store" } });
@@ -20,6 +23,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!isPublicPlatformAdminSetupEnabled()) {
+    return NextResponse.json({ error: "Public administrator setup is disabled." }, { status: 404, headers: { "Cache-Control": "no-store" } });
+  }
   try {
     const expectedOrigin = new URL(getAuthEnv().BETTER_AUTH_URL).origin;
     if (request.headers.get("origin") !== expectedOrigin) {

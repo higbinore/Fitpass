@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { canBeginInitialPlatformAdminSetup, decideInitialPlatformAdminClaim, initialPlatformAdminSetupSchema } from "../lib/platform-setup-policy.ts";
+import { canBeginInitialPlatformAdminSetup, decideInitialPlatformAdminClaim, initialPlatformAdminSetupSchema, isPublicPlatformAdminSetupEnabled } from "../lib/platform-setup-policy.ts";
+
+test("public first-admin bootstrap is disabled in production", () => {
+  assert.equal(isPublicPlatformAdminSetupEnabled("development"), true);
+  assert.equal(isPublicPlatformAdminSetupEnabled("test"), true);
+  assert.equal(isPublicPlatformAdminSetupEnabled("production"), false);
+});
 
 test("initial setup is unavailable after an admin or completion marker exists, and while a claim is pending", () => {
   assert.equal(canBeginInitialPlatformAdminSetup({ administratorExists: false, setupCompleted: false, pendingClaimExists: false }), true);

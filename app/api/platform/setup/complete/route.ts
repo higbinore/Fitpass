@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { getAuth } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { INITIAL_ADMIN_SETUP_COMPLETED_ACTION, INITIAL_ADMIN_SETUP_IDENTIFIER, INITIAL_ADMIN_SETUP_LOCK, initialAdminSetupClaimId } from "@/lib/platform-setup";
-import { decideInitialPlatformAdminClaim } from "@/lib/platform-setup-policy";
+import { decideInitialPlatformAdminClaim, isPublicPlatformAdminSetupEnabled } from "@/lib/platform-setup-policy";
 import { auditEvents, authUsers, authVerifications, platformAdmins } from "@/lib/schema";
 
 function setupRedirect(request: Request, state: "complete" | "closed" | "verify") {
@@ -14,6 +14,7 @@ function setupRedirect(request: Request, state: "complete" | "closed" | "verify"
 }
 
 export async function GET(request: Request) {
+  if (!isPublicPlatformAdminSetupEnabled()) return setupRedirect(request, "closed");
   const claimToken = new URL(request.url).searchParams.get("claim") ?? "";
   if (!/^[A-Za-z0-9_-]{43}$/.test(claimToken)) return setupRedirect(request, "closed");
 

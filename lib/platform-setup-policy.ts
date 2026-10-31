@@ -12,6 +12,11 @@ export const initialPlatformAdminSetupSchema = z.object({
 
 export type InitialPlatformAdminSetupInput = z.infer<typeof initialPlatformAdminSetupSchema>;
 
+/** Public first-admin bootstrap is a development-only recovery path. */
+export function isPublicPlatformAdminSetupEnabled(nodeEnv = process.env.NODE_ENV): boolean {
+  return nodeEnv !== "production";
+}
+
 export type SetupAvailability = {
   administratorExists: boolean;
   setupCompleted: boolean;
