@@ -21,7 +21,7 @@ export async function GET(_request: Request, context: { params: Promise<{ gymId:
     const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const expiringBefore = new Date(now.getTime() + 7 * 86400000);
     const newMemberStart = new Date(now.getTime() - 30 * 86400000);
-    const [gym] = await db.select({ id: gyms.id, name: gyms.name, slug: gyms.slug, status: gyms.status, contactPhone: gyms.contactPhone, contactEmail: gyms.contactEmail, location: gyms.location, maxDailyCheckins: gyms.maxDailyCheckins, logoUrl: gyms.logoUrl, facilityPhotoUrls: gyms.facilityPhotoUrls }).from(gyms).where(eq(gyms.id, gymId)).limit(1);
+    const [gym] = await db.select({ id: gyms.id, name: gyms.name, slug: gyms.slug, status: gyms.status, contactPhone: gyms.contactPhone, contactEmail: gyms.contactEmail, location: gyms.location, description: gyms.description, openingHours: gyms.openingHours, amenities: gyms.amenities, equipment: gyms.equipment, maxDailyCheckins: gyms.maxDailyCheckins, latitude: gyms.latitude, longitude: gyms.longitude, locationSource: gyms.locationSource, locationVerifiedAt: gyms.locationVerifiedAt, logoUrl: gyms.logoUrl, facilityPhotoUrls: gyms.facilityPhotoUrls }).from(gyms).where(eq(gyms.id, gymId)).limit(1);
     if (!gym) return NextResponse.json({ error: "Gym not found." }, { status: 404 });
     const [
       [memberCount], [activeSubscriptions], [paidIncome], [monthIncome], [todayCheckins], [newMembers], [pendingPayments],

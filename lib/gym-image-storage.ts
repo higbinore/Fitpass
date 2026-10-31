@@ -21,5 +21,14 @@ export async function storeGymImage(pathPrefix: string, slot: GymImageSlot, file
 }
 
 export async function removeGymImages(urls: string[]) {
-  if (urls.length > 0 && process.env.BLOB_READ_WRITE_TOKEN) await del(urls);
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
+  const blobUrls = urls.filter((value) => {
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "https:" && parsed.hostname.endsWith(".blob.vercel-storage.com");
+    } catch {
+      return false;
+    }
+  });
+  if (blobUrls.length > 0) await del(blobUrls);
 }

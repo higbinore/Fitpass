@@ -16,6 +16,9 @@
 4. `0003_tenant_constraints.sql` validates tenant-scoped uniqueness and
    same-gym foreign keys before removing the replaced global constraints.
    The legacy `checkins.checked_in_by -> members.id` foreign key stays in place.
+5. `0004_launch_gym_content.sql` adds JSON array columns for amenities and
+   equipment and writes the agreed demo content and local SVG paths only for
+   the confirmed launch gym. It does not touch membership plans.
 
 Drizzle Kit 0.31.11's PostgreSQL migrator reads the SQL files and journal and
 records each migration hash/timestamp in its configured migration table. The

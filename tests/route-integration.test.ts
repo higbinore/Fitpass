@@ -81,6 +81,13 @@ test("gym A cannot read owner data or write a check-in in gym B", { skip: integr
   assert.ok(checkinWrite.status === 401 || checkinWrite.status === 403);
 });
 
+test("a gym A owner cannot edit gym B through either gym or platform settings routes", { skip: integrationSkip }, async () => {
+  const ownerEdit = await api(`/api/gyms/${fixtures!.gymBId}/settings`, cookies().gymAOwner, "PATCH", {});
+  assert.ok(ownerEdit.status === 401 || ownerEdit.status === 403);
+  const platformEdit = await api(`/api/platform/gyms/${fixtures!.gymBId}`, cookies().gymAOwner, "PATCH", {});
+  assert.ok(platformEdit.status === 401 || platformEdit.status === 403);
+});
+
 test("member and desk roles cannot escalate into owner operations", { skip: integrationSkip }, async () => {
   const escalation = await api(`/api/gyms/${fixtures!.gymAId}/invitations`, cookies().gymAMember, "POST", {
     email: "role-escalation-denied@example.invalid",

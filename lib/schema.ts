@@ -93,6 +93,8 @@ export const gyms = pgTable(
     location: text("location"),
     description: text("description"),
     openingHours: text("opening_hours"),
+    amenities: jsonb("amenities").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    equipment: jsonb("equipment").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     maxDailyCheckins: integer("max_daily_checkins").notNull().default(1),
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
@@ -109,7 +111,9 @@ export const gyms = pgTable(
     unique("gyms_id_status_unique").on(t.id, t.status),
     check("gyms_status_valid", sql`${t.status} in ('active', 'suspended', 'archived')`),
     check("gyms_max_daily_checkins_valid", sql`${t.maxDailyCheckins} between 1 and 20`),
-    check("gyms_coordinates_pair_valid", sql`(${t.latitude} is null and ${t.longitude} is null and ${t.locationVerifiedAt} is null) or (${t.latitude} between -90 and 90 and ${t.longitude} between -180 and 180 and ${t.locationVerifiedAt} is not null)`),
+    check("gyms_amenities_array_valid", sql`jsonb_typeof(${t.amenities}) = 'array'`),
+    check("gyms_equipment_array_valid", sql`jsonb_typeof(${t.equipment}) = 'array'`),
+    check("gyms_coordinates_pair_valid", sql`(${t.latitude} is null and ${t.longitude} is null and ${t.locationSource} is null and ${t.locationVerifiedAt} is null) or (${t.latitude} between -90 and 90 and ${t.longitude} between -180 and 180 and ${t.locationSource} is not null)`),
   ],
 );
 
@@ -385,8 +389,8 @@ export const checkins = pgTable(
     subscriptionId: uuid("subscription_id").notNull(),
     code: text("code").notNull(),
     checkedInByMembershipId: uuid("checked_in_by_membership_id"),
-    // Keep legacy column during rollout; migration will backfill it to null.
-    checkedInBy: uuid("checked_in_by"),
+    // Preserve historical actor attribution; new check-ins use the gym membership identity above.
+    checkedInBy: uuid("checked_in_by").references(() => members.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
   (t) => [

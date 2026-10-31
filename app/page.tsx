@@ -19,6 +19,8 @@ import { formatNaira } from "@/lib/money";
 import { plans } from "@/lib/schema";
 import { getInitialGym } from "@/lib/tenant";
 import PublicPricing from "./PublicPricing";
+import GymLocationMap from "@/components/GymLocationMap";
+import GymImagePlaceholder from "@/components/GymImagePlaceholder";
 import PublicSiteHeader from "./PublicSiteHeader";
 
 const steps = [
@@ -187,12 +189,13 @@ export default async function Home() {
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-5 text-sm font-medium text-slate-600"><span>Gym-set prices</span><span>Verified membership</span><span>Easy front-desk check-in</span></div>
         </div>
         <figure className="relative isolate min-h-[340px] overflow-hidden rounded-[1.5rem] bg-green-950 sm:min-h-[440px] lg:min-h-[540px]">
-          {initialGym?.facilityPhotoUrls[0] ? <Image src={initialGym.facilityPhotoUrls[0]} alt={`${initialGym.name} facility`} fill priority sizes="(max-width: 1024px) 100vw, 56vw" unoptimized className="-z-20 object-cover object-center" /> : initialGym?.logoUrl ? <Image src={initialGym.logoUrl} alt={`${initialGym.name} logo`} fill priority sizes="(max-width: 1024px) 100vw, 56vw" unoptimized className="-z-20 object-contain p-12" /> : null}
+          {initialGym?.facilityPhotoUrls[0] ? <Image src={initialGym.facilityPhotoUrls[0]} alt={`${initialGym.name} facility`} fill priority sizes="(max-width: 1024px) 100vw, 56vw" unoptimized className="-z-20 object-cover object-center" /> : initialGym?.logoUrl ? <Image src={initialGym.logoUrl} alt={`${initialGym.name} logo`} fill priority sizes="(max-width: 1024px) 100vw, 56vw" unoptimized className="-z-20 object-contain p-12" /> : <GymImagePlaceholder label="Gym photographs will appear here when published" className="absolute inset-0 -z-20 h-full" />}
           <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-green-950/85 via-green-950/15 to-green-950/10" />
           <div className="absolute left-4 top-4 rounded-2xl border border-white/25 bg-white/90 px-4 py-3 shadow-lg backdrop-blur sm:left-6 sm:top-6"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">Your next session</p><p className="mt-1 text-sm font-semibold text-foreground">Starts with a plan that fits.</p></div>
           <figcaption className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-4 p-5 text-white sm:p-7"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-green-200">Train with intention</p><p className="mt-2 max-w-md font-heading text-2xl font-bold leading-tight sm:text-3xl">{initialGym?.name ?? "Find your pace. Find your place."}</p></div>{initialGym?.location && <span className="max-w-full rounded-xl bg-accent px-3 py-2 text-xs font-bold text-slate-950">{initialGym.location}</span>}</figcaption>
         </figure>
       </section>
+      {initialGym?.location && <section aria-labelledby="launch-gym-map-title" className="mt-6 rounded-[2rem] bg-white p-5 shadow-sm sm:p-7"><div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Find the launch gym</p><h2 id="launch-gym-map-title" className="mt-2 font-heading text-2xl font-bold">{initialGym.name}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Map preview is based on the gym’s published address; no coordinates or markers are fabricated.</p></div><GymLocationMap name={initialGym.name} address={initialGym.location} /></section>}
       <section id="plans" className="mt-14 scroll-mt-6 rounded-[2rem] bg-white p-5 shadow-sm sm:p-8">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Choose your membership</p><h2 className="mt-2 font-heading text-3xl">Plans from participating gyms</h2>
         <p className="mt-2 text-base text-muted-foreground">Prices and availability are set by each gym. Select a gym to see its current plans.</p>

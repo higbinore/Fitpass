@@ -10,6 +10,13 @@ const updateSchema = z.object({
   name: z.string().trim().min(2).max(120),
   slug: z.string().trim().toLowerCase().min(3).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   status: z.enum(["active", "suspended", "archived"]),
+  contactPhone: z.string().trim().max(40).nullable(),
+  contactEmail: z.string().trim().email().max(254).nullable(),
+  location: z.string().trim().max(240).nullable(),
+  description: z.string().trim().max(1200).nullable(),
+  openingHours: z.string().trim().max(240).nullable(),
+  amenities: z.array(z.string().trim().min(1).max(80)).max(20),
+  equipment: z.array(z.string().trim().min(1).max(80)).max(30),
   latitude: z.number().finite().min(-90).max(90).nullable(),
   longitude: z.number().finite().min(-180).max(180).nullable(),
   locationSource: z.string().trim().url().max(1000).nullable(),
@@ -70,10 +77,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ gymId
       if (!before) return null;
       const now = new Date();
       const coordinatesChanged = before.latitude !== parsed.data.latitude || before.longitude !== parsed.data.longitude || before.locationSource !== parsed.data.locationSource;
+      const changedFields = (Object.keys(parsed.data) as Array<keyof typeof parsed.data>).filter((key) =>
+        JSON.stringify(before[key]) !== JSON.stringify(parsed.data[key]),
+      );
       const [after] = await tx.update(gyms).set({
         name: parsed.data.name,
         slug: parsed.data.slug,
         status: parsed.data.status,
+        contactPhone: parsed.data.contactPhone,
+        contactEmail: parsed.data.contactEmail,
+        location: parsed.data.location,
+        description: parsed.data.description,
+        openingHours: parsed.data.openingHours,
+        amenities: parsed.data.amenities,
+        equipment: parsed.data.equipment,
         latitude: parsed.data.latitude,
         longitude: parsed.data.longitude,
         locationSource: parsed.data.locationSource,
@@ -90,7 +107,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ gymId
         action: "platform_admin.gym_updated",
         subjectType: "gym",
         subjectId: gymId,
-        metadata: { changedFields: ["name", "slug", "status", ...(coordinatesChanged ? ["verified_coordinates"] : []), ...(before.maxDailyCheckins !== parsed.data.maxDailyCheckins ? ["max_daily_checkins"] : [])], previousStatus: before.status, currentStatus: after.status, previousMaxDailyCheckins: before.maxDailyCheckins, currentMaxDailyCheckins: after.maxDailyCheckins, ...(coordinatesChanged ? { coordinates: parsed.data.latitude === null ? null : { latitude: parsed.data.latitude, longitude: parsed.data.longitude, source: parsed.data.locationSource } } : {}) },
+        metadata: { changedFields: [...changedFields.filter((key) => key !== "latitude" && key !== "longitude" && key !== "locationSource"), ...(coordinatesChanged ? ["verified_coordinates"] : [])], previousStatus: before.status, currentStatus: after.status, previousMaxDailyCheckins: before.maxDailyCheckins, currentMaxDailyCheckins: after.maxDailyCheckins, ...(coordinatesChanged ? { coordinates: parsed.data.latitude === null ? null : { latitude: parsed.data.latitude, longitude: parsed.data.longitude, source: parsed.data.locationSource } } : {}) },
       });
       return after;
     });

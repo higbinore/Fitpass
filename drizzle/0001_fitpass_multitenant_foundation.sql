@@ -170,7 +170,7 @@ CREATE TABLE "gyms" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "gyms_id_status_unique" UNIQUE("id","status"),
 	CONSTRAINT "gyms_status_valid" CHECK ("gyms"."status" in ('active', 'suspended', 'archived')),
-	CONSTRAINT "gyms_coordinates_pair_valid" CHECK (("gyms"."latitude" is null and "gyms"."longitude" is null and "gyms"."location_verified_at" is null) or ("gyms"."latitude" between -90 and 90 and "gyms"."longitude" between -180 and 180 and "gyms"."location_verified_at" is not null))
+	CONSTRAINT "gyms_coordinates_pair_valid" CHECK (("gyms"."latitude" is null and "gyms"."longitude" is null and "gyms"."location_source" is null and "gyms"."location_verified_at" is null) or ("gyms"."latitude" between -90 and 90 and "gyms"."longitude" between -180 and 180 and "gyms"."location_source" is not null))
 );
 --> statement-breakpoint
 CREATE TABLE "payment_reference_registry" (

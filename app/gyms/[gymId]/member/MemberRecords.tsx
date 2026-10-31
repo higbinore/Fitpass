@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowUpRight, CalendarDays, Check, Clock3, CreditCard, History, Pencil, Save, X } from "lucide-react";
 import { formatNaira } from "@/lib/money";
+import GymImagePlaceholder from "@/components/GymImagePlaceholder";
 
 type Records = {
   gym: { name: string; logoUrl: string | null; facilityPhotoUrls: string[] };
@@ -94,7 +95,7 @@ export default function MemberRecords({ gymId }: { gymId: string }) {
     {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
     {notice && <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900">{notice}</p>}
     <section className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      {records.gym.facilityPhotoUrls[0] ? <Image src={records.gym.facilityPhotoUrls[0]} alt={`${records.gym.name} facility`} width={240} height={144} unoptimized className="h-24 w-40 rounded-xl object-cover" /> : records.gym.logoUrl ? <Image src={records.gym.logoUrl} alt={`${records.gym.name} logo`} width={96} height={96} unoptimized className="size-20 rounded-xl border object-cover" /> : null}
+      {records.gym.facilityPhotoUrls[0] ? <Image src={records.gym.facilityPhotoUrls[0]} alt={`${records.gym.name} facility`} width={240} height={144} unoptimized className="h-24 w-40 rounded-xl object-cover" /> : records.gym.logoUrl ? <Image src={records.gym.logoUrl} alt={`${records.gym.name} logo`} width={96} height={96} unoptimized className="size-20 rounded-xl border object-cover" /> : <GymImagePlaceholder label="Gym photo will appear here when published" className="w-full max-w-xs rounded-xl" />}
       <div><p className="text-xs font-bold uppercase tracking-wide text-green-700">Your gym</p><h2 className="mt-1 font-heading text-lg font-bold text-slate-950">{records.gym.name}</h2><Link href={`/gyms/${encodeURIComponent(gymId)}`} className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-primary underline">View gym profile</Link></div>
     </section>
     <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
