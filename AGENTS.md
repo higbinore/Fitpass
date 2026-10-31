@@ -123,6 +123,8 @@ Invalid, expired, inactive, or missing memberships must not create a `checkins` 
 
 Where practical, perform the membership verification and check-in write in a transaction or with suitable concurrency protection so the result is consistent.
 
+Each gym's `max_daily_checkins` setting is an integer from 1 to 20 (default 1). Owners may edit only their own gym's value; platform administrators may edit it through the authorized platform gym workflow. Audit every change. Enforce the limit server-side per member, gym, and Africa/Lagos calendar day inside the existing gym-row-locked check-in transaction, after confirming the subscription is active and unexpired. Do not create a check-in row when the daily limit is reached.
+
 ## Secrets and environment variables
 
 - Store local secrets only in `.env.local`; configure deployment secrets through Vercel environment variables.

@@ -13,6 +13,7 @@ const updateSchema = z.object({
   latitude: z.number().finite().min(-90).max(90).nullable(),
   longitude: z.number().finite().min(-180).max(180).nullable(),
   locationSource: z.string().trim().url().max(1000).nullable(),
+  maxDailyCheckins: z.number().int().min(1).max(20),
 }).refine((value) => (value.latitude === null) === (value.longitude === null) && (value.latitude === null ? value.locationSource === null : Boolean(value.locationSource)), { message: "Provide both coordinates and their verification source, or clear all three." });
 
 export async function GET(_request: Request, context: { params: Promise<{ gymId: string }> }) {
@@ -76,19 +77,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ gymId
         latitude: parsed.data.latitude,
         longitude: parsed.data.longitude,
         locationSource: parsed.data.locationSource,
+        maxDailyCheckins: parsed.data.maxDailyCheckins,
         locationVerifiedAt: parsed.data.latitude === null ? null : coordinatesChanged ? now : before.locationVerifiedAt,
         locationVerifiedByUserId: parsed.data.latitude === null ? null : coordinatesChanged ? admin.userId : before.locationVerifiedByUserId,
         suspendedAt: parsed.data.status === "suspended" ? (before.suspendedAt ?? now) : null,
         archivedAt: parsed.data.status === "archived" ? (before.archivedAt ?? now) : null,
         updatedAt: now,
-      }).where(eq(gyms.id, gymId)).returning({ id: gyms.id, name: gyms.name, slug: gyms.slug, status: gyms.status, suspendedAt: gyms.suspendedAt, archivedAt: gyms.archivedAt });
+      }).where(eq(gyms.id, gymId)).returning({ id: gyms.id, name: gyms.name, slug: gyms.slug, status: gyms.status, maxDailyCheckins: gyms.maxDailyCheckins, suspendedAt: gyms.suspendedAt, archivedAt: gyms.archivedAt });
       await tx.insert(auditEvents).values({
         actorUserId: admin.userId,
         actorLabel: "platform_admin",
         action: "platform_admin.gym_updated",
         subjectType: "gym",
         subjectId: gymId,
-        metadata: { changedFields: ["name", "slug", "status", ...(coordinatesChanged ? ["verified_coordinates"] : [])], previousStatus: before.status, currentStatus: after.status, ...(coordinatesChanged ? { coordinates: parsed.data.latitude === null ? null : { latitude: parsed.data.latitude, longitude: parsed.data.longitude, source: parsed.data.locationSource } } : {}) },
+        metadata: { changedFields: ["name", "slug", "status", ...(coordinatesChanged ? ["verified_coordinates"] : []), ...(before.maxDailyCheckins !== parsed.data.maxDailyCheckins ? ["max_daily_checkins"] : [])], previousStatus: before.status, currentStatus: after.status, previousMaxDailyCheckins: before.maxDailyCheckins, currentMaxDailyCheckins: after.maxDailyCheckins, ...(coordinatesChanged ? { coordinates: parsed.data.latitude === null ? null : { latitude: parsed.data.latitude, longitude: parsed.data.longitude, source: parsed.data.locationSource } } : {}) },
       });
       return after;
     });

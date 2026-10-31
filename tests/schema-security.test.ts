@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getTableConfig } from "drizzle-orm/pg-core";
 
-import { checkins, gymMembershipRoles, gymMemberships, members, paymentReferenceRegistry, payments, plans, platformAdmins, platformPayments, subscriptions } from "../lib/schema.ts";
+import { checkins, gymMembershipRoles, gymMemberships, gyms, members, paymentReferenceRegistry, payments, plans, platformAdmins, platformPayments, subscriptions } from "../lib/schema.ts";
 
 function hasCompositeReference(table: Parameters<typeof getTableConfig>[0], local: string[], remoteTable: string, remote: string[]) {
   return getTableConfig(table).foreignKeys.some((foreignKey) => {
@@ -31,6 +31,12 @@ test("membership identity and role grants are normalized and revocation history 
 
 test("platform administrator suspension is represented as a persistent schema field", () => {
   assert.ok(getTableConfig(platformAdmins).columns.some((column) => column.name === "suspended_at"));
+});
+
+test("gyms store a bounded per-gym daily check-in limit", () => {
+  const config = getTableConfig(gyms);
+  assert.ok(config.columns.some((column) => column.name === "max_daily_checkins" && column.notNull));
+  assert.ok(config.checks.some((constraint) => constraint.name === "gyms_max_daily_checkins_valid"));
 });
 
 test("member identity and membership codes are gym-scoped", () => {

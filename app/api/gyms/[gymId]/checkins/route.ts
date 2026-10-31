@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -6,16 +6,9 @@ import { AuthorizationError, requireActiveGymDeskStaff } from "@/lib/authz";
 import { getDb } from "@/lib/db";
 import { checkins, gyms, members, subscriptions } from "@/lib/schema";
 import { hasActiveGymRoleInTransaction } from "@/lib/transaction-authz";
+import { decideDailyCheckin, getLagosDayBounds } from "@/lib/daily-checkin-policy";
 
 const checkinSchema = z.object({ code: z.string().trim().min(4).max(40) });
-
-function startOfTodayInBenin(now: Date): Date {
-  // Nigeria is UTC+1 year-round. Convert local midnight to the UTC timestamp
-  // stored by Postgres so the desk's daily activity is consistent on servers.
-  const localTime = new Date(now.getTime() + 60 * 60 * 1000);
-  localTime.setUTCHours(0, 0, 0, 0);
-  return new Date(localTime.getTime() - 60 * 60 * 1000);
-}
 
 /** Desk-only, gym-scoped read for today's activity and non-mutating code verification. */
 export async function GET(request: Request, context: { params: Promise<{ gymId: string }> }) {
@@ -24,14 +17,16 @@ export async function GET(request: Request, context: { params: Promise<{ gymId: 
     await requireActiveGymDeskStaff(gymId);
     const db = getDb();
     const now = new Date();
-    const todayStart = startOfTodayInBenin(now);
+    const { start: todayStart, end: tomorrowStart } = getLagosDayBounds(now);
+    const [gym] = await db.select({ maxDailyCheckins: gyms.maxDailyCheckins }).from(gyms).where(eq(gyms.id, gymId)).limit(1);
+    if (!gym) return NextResponse.json({ error: "Gym not found." }, { status: 404 });
     const [[today], recentCheckins] = await Promise.all([
       db.select({ total: sql<number>`count(*)::int` }).from(checkins)
-        .where(and(eq(checkins.gymId, gymId), gte(checkins.createdAt, todayStart))),
+        .where(and(eq(checkins.gymId, gymId), gte(checkins.createdAt, todayStart), lt(checkins.createdAt, tomorrowStart))),
       db.select({ id: checkins.id, memberName: members.fullName, checkedInAt: checkins.createdAt })
         .from(checkins)
         .innerJoin(members, and(eq(members.gymId, checkins.gymId), eq(members.id, checkins.memberId)))
-        .where(and(eq(checkins.gymId, gymId), gte(checkins.createdAt, todayStart)))
+        .where(and(eq(checkins.gymId, gymId), gte(checkins.createdAt, todayStart), lt(checkins.createdAt, tomorrowStart)))
         .orderBy(desc(checkins.createdAt))
         .limit(10),
     ]);
@@ -57,7 +52,10 @@ export async function GET(request: Request, context: { params: Promise<{ gymId: 
           : "This membership has expired. Ask the member to renew.";
       return NextResponse.json({ eligible: false, reason });
     }
-    return NextResponse.json({ eligible: true, memberName: member.fullName, expiresAt: activeSubscription.expiresAt });
+    const [used] = await db.select({ total: sql<number>`count(*)::int` }).from(checkins)
+      .where(and(eq(checkins.gymId, gymId), eq(checkins.memberId, member.id), gte(checkins.createdAt, todayStart), lt(checkins.createdAt, tomorrowStart)));
+    const daily = decideDailyCheckin(used.total, gym.maxDailyCheckins);
+    return NextResponse.json({ eligible: true, canCheckIn: daily.allowed, reason: daily.allowed ? null : daily.message, memberName: member.fullName, expiresAt: activeSubscription.expiresAt, dailyCheckins: { used: used.total, limit: gym.maxDailyCheckins } });
   } catch (error) {
     const denied = error instanceof AuthorizationError;
     return NextResponse.json({ error: denied ? "Active gym desk access is required." : "Could not load desk activity." }, { status: denied ? 403 : 503 });
@@ -73,7 +71,7 @@ export async function POST(request: Request, context: { params: Promise<{ gymId:
     if (!parsed.success) return NextResponse.json({ error: "Enter a valid membership code." }, { status: 400 });
     const code = parsed.data.code.replace(/\s+/g, "").toUpperCase();
     const result = await getDb().transaction(async (tx) => {
-      const [gym] = await tx.select({ status: gyms.status }).from(gyms).where(eq(gyms.id, gymId)).for("update").limit(1);
+      const [gym] = await tx.select({ status: gyms.status, maxDailyCheckins: gyms.maxDailyCheckins }).from(gyms).where(eq(gyms.id, gymId)).for("update").limit(1);
       if (!gym || gym.status !== "active") return { error: "This gym cannot record new check-ins.", statusCode: 410 as const };
       if (!await hasActiveGymRoleInTransaction(tx, { gymId, userId: desk.userId, membershipId: desk.membershipId, role: "gym_desk_staff" })) return { error: "Active gym desk access is required.", statusCode: 403 as const };
       const [member] = await tx.select({ id: members.id, fullName: members.fullName }).from(members)
@@ -89,9 +87,14 @@ export async function POST(request: Request, context: { params: Promise<{ gymId:
           ? { error: "Expired. Ask them to renew.", statusCode: 409 as const }
           : { error: "Membership is not active. Ask the member to renew.", statusCode: 409 as const };
       }
+      const { start: todayStart, end: tomorrowStart } = getLagosDayBounds(now);
+      const [used] = await tx.select({ total: sql<number>`count(*)::int` }).from(checkins)
+        .where(and(eq(checkins.gymId, gymId), eq(checkins.memberId, member.id), gte(checkins.createdAt, todayStart), lt(checkins.createdAt, tomorrowStart)));
+      const daily = decideDailyCheckin(used.total, gym.maxDailyCheckins);
+      if (!daily.allowed) return { error: daily.message, statusCode: 409 as const };
       await tx.insert(checkins).values({ gymId, memberId: member.id, subscriptionId: subscription.id, code, checkedInByMembershipId: desk.membershipId });
       const daysRemaining = Math.max(1, Math.ceil((subscription.expiresAt.getTime() - now.getTime()) / 86400000));
-      return { accepted: true as const, memberName: member.fullName, daysRemaining };
+      return { accepted: true as const, memberName: member.fullName, daysRemaining, dailyCheckins: { used: daily.countAfter, limit: daily.limit } };
     });
     if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.statusCode });
     return NextResponse.json(result, { status: 201 });

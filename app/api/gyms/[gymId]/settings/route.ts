@@ -13,6 +13,7 @@ const settingsSchema = z.object({
   contactPhone: z.string().trim().max(40).optional().transform((value) => value || null),
   contactEmail: z.string().trim().email().max(254).optional().or(z.literal("")).transform((value) => value || null),
   location: z.string().trim().max(240).optional().transform((value) => value || null),
+  maxDailyCheckins: z.number().int().min(1).max(20),
 });
 
 /** Updates the current gym's existing profile fields; tenant identity comes from the route and is verified server-side. */
@@ -24,7 +25,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ gymId
     if (!parsed.success) return NextResponse.json({ error: "Enter a gym name and a valid URL slug." }, { status: 400 });
 
     const result = await getDb().transaction(async (tx) => {
-      const [gym] = await tx.select({ id: gyms.id, name: gyms.name, slug: gyms.slug, status: gyms.status })
+      const [gym] = await tx.select({ id: gyms.id, name: gyms.name, slug: gyms.slug, status: gyms.status, maxDailyCheckins: gyms.maxDailyCheckins })
         .from(gyms).where(eq(gyms.id, gymId)).for("update").limit(1);
       if (!gym || gym.status !== "active") return { error: "This gym is unavailable for profile changes.", status: 409 as const };
       if (!await hasActiveGymRoleInTransaction(tx, { gymId, userId: owner.userId, membershipId: owner.membershipId, role: "gym_owner" })) {
@@ -39,7 +40,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ gymId
         action: "gym.profile_updated",
         subjectType: "gym",
         subjectId: gymId,
-        metadata: { changedFields: ["name", "slug", "contactPhone", "contactEmail", "location"], previousSlug: gym.slug },
+        metadata: { changedFields: ["name", "slug", "contactPhone", "contactEmail", "location", ...(gym.maxDailyCheckins !== parsed.data.maxDailyCheckins ? ["maxDailyCheckins"] : [])], previousSlug: gym.slug, previousMaxDailyCheckins: gym.maxDailyCheckins, currentMaxDailyCheckins: parsed.data.maxDailyCheckins },
       });
       return { gym: updated };
     });

@@ -93,6 +93,7 @@ export const gyms = pgTable(
     location: text("location"),
     description: text("description"),
     openingHours: text("opening_hours"),
+    maxDailyCheckins: integer("max_daily_checkins").notNull().default(1),
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
     locationVerifiedAt: timestamp("location_verified_at", { withTimezone: true }),
@@ -107,6 +108,7 @@ export const gyms = pgTable(
     uniqueIndex("gyms_slug_unique").on(t.slug),
     unique("gyms_id_status_unique").on(t.id, t.status),
     check("gyms_status_valid", sql`${t.status} in ('active', 'suspended', 'archived')`),
+    check("gyms_max_daily_checkins_valid", sql`${t.maxDailyCheckins} between 1 and 20`),
     check("gyms_coordinates_pair_valid", sql`(${t.latitude} is null and ${t.longitude} is null and ${t.locationVerifiedAt} is null) or (${t.latitude} between -90 and 90 and ${t.longitude} between -180 and 180 and ${t.locationVerifiedAt} is not null)`),
   ],
 );
