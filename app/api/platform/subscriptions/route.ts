@@ -29,12 +29,12 @@ export async function GET(request: Request) {
     const where = conditions.length ? and(...conditions) : undefined;
     const db = getDb();
     const [rows, [total]] = await Promise.all([
-      db.select({ id: platformSubscriptions.id, gymId: platformSubscriptions.gymId, gymName: gyms.name, packageName: platformPackages.name, packageId: platformPackages.id, status: platformSubscriptions.status, currentPeriodEnd: platformSubscriptions.currentPeriodEnd, priceKobo: platformPackages.priceKobo, customPriceKobo: platformSubscriptions.customPriceKobo, pricingNote: platformSubscriptions.pricingNote, billingInterval: platformPackages.billingInterval, createdAt: platformSubscriptions.createdAt })
+      db.select({ id: platformSubscriptions.id, gymId: platformSubscriptions.gymId, gymName: gyms.name, packageName: platformPackages.name, packageId: platformPackages.id, status: platformSubscriptions.status, currentPeriodEnd: platformSubscriptions.currentPeriodEnd, priceKobo: platformPackages.priceKobo, billingInterval: platformPackages.billingInterval, createdAt: platformSubscriptions.createdAt })
         .from(platformSubscriptions).innerJoin(gyms, eq(gyms.id, platformSubscriptions.gymId)).innerJoin(platformPackages, eq(platformPackages.id, platformSubscriptions.packageId))
         .where(where).orderBy(desc(platformSubscriptions.createdAt), desc(platformSubscriptions.id)).limit(pageSize).offset((page - 1) * pageSize),
       db.select({ total: count() }).from(platformSubscriptions).innerJoin(gyms, eq(gyms.id, platformSubscriptions.gymId)).innerJoin(platformPackages, eq(platformPackages.id, platformSubscriptions.packageId)).where(where),
     ]);
-    return NextResponse.json({ subscriptions: rows.map((row) => ({ ...row, status: row.status === "trialing" && row.currentPeriodEnd <= now ? "expired" : row.status, billedPriceKobo: row.customPriceKobo ?? row.priceKobo })), total: total.total, page, pageSize, hasMore: page * pageSize < total.total });
+    return NextResponse.json({ subscriptions: rows.map((row) => ({ ...row, status: row.status === "trialing" && row.currentPeriodEnd <= now ? "expired" : row.status, billedPriceKobo: row.priceKobo })), total: total.total, page, pageSize, hasMore: page * pageSize < total.total });
   } catch (error) {
     const denied = error instanceof Error && error.name === "AuthorizationError";
     return NextResponse.json({ error: denied ? "Platform administrator access required." : "Could not load subscriptions." }, { status: denied ? 403 : 503 });

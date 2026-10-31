@@ -1,17 +1,15 @@
 import { randomBytes } from "node:crypto";
 import { and, count, countDistinct, desc, eq, inArray, isNull, lte } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { AuthorizationError, requireVerifiedUser, requireGymOwner } from "@/lib/authz";
 import { getDb } from "@/lib/db";
 import { getPaymentEnv } from "@/lib/env";
 import { getPaymentMode } from "@/lib/payment-mode";
+import { approvedFitPassPackagePriceKobo, fitPassPackageSelectionSchema } from "@/lib/platform-package-policy";
 import { gyms, gymMembershipRoles, gymMemberships, gymOnboarding, paymentReferenceRegistry, platformPackages, platformPayments, platformSubscriptions } from "@/lib/schema";
 import { hasActiveGymRoleInTransaction } from "@/lib/transaction-authz";
 import { trialDaysRemaining } from "@/lib/trial-policy";
-
-const schema = z.object({ packageId: z.string().uuid() });
 
 /** Owner-only view of this gym's FitPass subscription, usage, and billing history. */
 export async function GET(request: Request, context: { params: Promise<{ gymId: string }> }) {
@@ -23,7 +21,7 @@ export async function GET(request: Request, context: { params: Promise<{ gymId: 
     const db = getDb();
     const pageSize = 20;
     const [[subscription], payments, [members], [admins]] = await Promise.all([
-      db.select({ id: platformSubscriptions.id, status: platformSubscriptions.status, startsAt: platformSubscriptions.startsAt, currentPeriodEnd: platformSubscriptions.currentPeriodEnd, packageName: platformPackages.name, packagePriceKobo: platformPackages.priceKobo, customPriceKobo: platformSubscriptions.customPriceKobo, pricingNote: platformSubscriptions.pricingNote, activeMemberLimit: platformPackages.activeMemberLimit, adminAccountLimit: platformPackages.adminAccountLimit, billingInterval: platformPackages.billingInterval })
+      db.select({ id: platformSubscriptions.id, status: platformSubscriptions.status, startsAt: platformSubscriptions.startsAt, currentPeriodEnd: platformSubscriptions.currentPeriodEnd, packageName: platformPackages.name, packagePriceKobo: platformPackages.priceKobo, activeMemberLimit: platformPackages.activeMemberLimit, adminAccountLimit: platformPackages.adminAccountLimit, billingInterval: platformPackages.billingInterval })
         .from(platformSubscriptions).innerJoin(platformPackages, eq(platformPackages.id, platformSubscriptions.packageId))
         .where(eq(platformSubscriptions.gymId, gymId)).orderBy(desc(platformSubscriptions.createdAt)).limit(1),
       db.select({ id: platformPayments.id, amountKobo: platformPayments.amountKobo, status: platformPayments.status, paymentMode: platformPayments.paymentMode, reference: platformPayments.reference, createdAt: platformPayments.createdAt, paidAt: platformPayments.paidAt })
@@ -62,7 +60,7 @@ export async function POST(request: Request, context: { params: Promise<{ gymId:
     const identity = await requireVerifiedUser();
     const { gymId } = await context.params;
     const owner = await requireGymOwner(gymId);
-    const parsed = schema.safeParse(await request.json());
+    const parsed = fitPassPackageSelectionSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Choose an available FitPass package." }, { status: 400 });
     const paymentMode = getPaymentMode();
     // Fail before creating pending billing records if Paystack configuration is unavailable.
@@ -75,13 +73,15 @@ export async function POST(request: Request, context: { params: Promise<{ gymId:
       if (!await hasActiveGymRoleInTransaction(tx, { gymId, userId: owner.userId, membershipId: owner.membershipId, role: "gym_owner" })) return { error: "An active gym owner role is required.", statusCode: 403 as const };
       const [pkg] = await tx.select().from(platformPackages).where(and(eq(platformPackages.id, parsed.data.packageId), eq(platformPackages.isActive, true))).limit(1);
       if (!pkg) return { error: "Package is unavailable.", statusCode: 404 as const };
+      const fixedPackagePriceKobo = approvedFitPassPackagePriceKobo(pkg);
+      if (fixedPackagePriceKobo === null) return { error: "This FitPass package does not match the approved fixed catalog.", statusCode: 409 as const };
 
       const [current] = await tx.select().from(platformSubscriptions).where(and(eq(platformSubscriptions.gymId, gymId), inArray(platformSubscriptions.status, ["pending_payment", "trialing", "active", "past_due"]))).for("update").limit(1);
       const existing = current?.status === "trialing" && current.currentPeriodEnd <= new Date()
         ? (await tx.update(platformSubscriptions).set({ status: "expired", updatedAt: new Date() }).where(eq(platformSubscriptions.id, current.id)), null)
         : current;
       if (existing?.status === "pending_payment") return { error: "A FitPass subscription payment is already pending for this gym.", statusCode: 409 as const };
-      const amountKobo = existing?.packageId === pkg.id && existing.customPriceKobo !== null ? existing.customPriceKobo : pkg.priceKobo;
+      const amountKobo = fixedPackagePriceKobo;
       const [registeredReference] = await tx.insert(paymentReferenceRegistry).values({ reference, paymentType: "platform" }).onConflictDoNothing().returning({ reference: paymentReferenceRegistry.reference });
       if (!registeredReference) return { error: "Could not reserve this payment reference.", statusCode: 409 as const };
       let subscriptionId: string;

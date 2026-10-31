@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         if (eventResult === "duplicate") return { duplicate: true };
         if (eventResult === "conflict") return { error: "Transaction identifier is already linked to another payment.", status: 409 as const };
         await tx.update(platformPayments).set({ status: "paid", paystackTransactionId: validTransactionId, paidAt: data.paid_at ? new Date(data.paid_at) : now }).where(eq(platformPayments.id, payment.id));
-        await tx.update(platformSubscriptions).set({ packageId: payment.platformPackageId, paymentMode: "paystack", customPriceKobo: sub.packageId === payment.platformPackageId ? sub.customPriceKobo : null, pricingNote: sub.packageId === payment.platformPackageId ? sub.pricingNote : null, status: "active", startsAt: sub.startsAt > now ? sub.startsAt : now, currentPeriodEnd: periodEnd, updatedAt: now }).where(eq(platformSubscriptions.id, sub.id));
+        await tx.update(platformSubscriptions).set({ packageId: payment.platformPackageId, paymentMode: "paystack", status: "active", startsAt: sub.startsAt > now ? sub.startsAt : now, currentPeriodEnd: periodEnd, updatedAt: now }).where(eq(platformSubscriptions.id, sub.id));
         await tx.insert(auditEvents).values({ gymId: payment.gymId, actorLabel: "paystack_webhook", action: "platform_payment.paid", subjectType: "platform_payment", subjectId: payment.id, metadata: { transactionId: validTransactionId, reference: validReference, amountKobo: payment.amountKobo } });
         return { paid: true, paymentType };
       }

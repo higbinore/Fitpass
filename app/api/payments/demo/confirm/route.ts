@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       const periodStart = subscription.status === "active" && subscription.currentPeriodEnd > now ? subscription.currentPeriodEnd : now;
       const periodEnd = addCalendarMonth(periodStart);
       await tx.update(platformPayments).set({ status: "paid", paidAt: now }).where(eq(platformPayments.id, payment.id));
-      await tx.update(platformSubscriptions).set({ packageId: payment.platformPackageId, paymentMode: "demo", customPriceKobo: subscription.packageId === payment.platformPackageId ? subscription.customPriceKobo : null, pricingNote: subscription.packageId === payment.platformPackageId ? subscription.pricingNote : null, status: "active", startsAt: now, currentPeriodEnd: periodEnd, updatedAt: now }).where(eq(platformSubscriptions.id, subscription.id));
+      await tx.update(platformSubscriptions).set({ packageId: payment.platformPackageId, paymentMode: "demo", status: "active", startsAt: now, currentPeriodEnd: periodEnd, updatedAt: now }).where(eq(platformSubscriptions.id, subscription.id));
       await tx.insert(auditEvents).values({ gymId: candidate.gymId, actorUserId: actor.userId, actorLabel: "demo_payment", action: "platform_payment.demo_paid", subjectType: "platform_payment", subjectId: payment.id, metadata: { paymentMode: "demo", amountKobo: payment.amountKobo } });
       return { status: "paid" as const };
     });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FIXED_FITPASS_PACKAGES, matchesFixedFitPassPackage } from "../lib/platform-package-policy.ts";
+import { approvedFitPassPackagePriceKobo, fitPassPackageSelectionSchema, FIXED_FITPASS_PACKAGES, matchesFixedFitPassPackage } from "../lib/platform-package-policy.ts";
 
 test("the four FitPass package prices and capacity limits match the approved monthly catalog", () => {
   assert.deepEqual(FIXED_FITPASS_PACKAGES, [
@@ -19,4 +19,13 @@ test("fixed package validation rejects price, limit, or interval drift", () => {
   assert.equal(matchesFixedFitPassPackage({ ...starter, activeMemberLimit: 101 }), false);
   assert.equal(matchesFixedFitPassPackage({ ...starter, adminAccountLimit: 3 }), false);
   assert.equal(matchesFixedFitPassPackage({ ...starter, billingInterval: "year" }), false);
+});
+
+test("FitPass billing accepts only a package selector and charges the approved stored tier price", () => {
+  const packageId = "7d318042-4724-4ae0-9dde-d18a6d6e1089";
+  assert.equal(fitPassPackageSelectionSchema.safeParse({ packageId }).success, true);
+  assert.equal(fitPassPackageSelectionSchema.safeParse({ packageId, customPriceKobo: 100 }).success, false);
+  assert.equal(fitPassPackageSelectionSchema.safeParse({ packageId, priceKobo: 100 }).success, false);
+  assert.equal(approvedFitPassPackagePriceKobo(FIXED_FITPASS_PACKAGES[0]), 5_000_000);
+  assert.equal(approvedFitPassPackagePriceKobo({ ...FIXED_FITPASS_PACKAGES[0], priceKobo: 1 }), null);
 });

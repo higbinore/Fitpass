@@ -36,7 +36,7 @@ export async function GET(_request: Request, context: { params: Promise<{ gymId:
         .innerJoin(authUsers, eq(authUsers.id, gymMemberships.userId))
         .where(and(eq(gymMemberships.gymId, gymId), eq(gymMembershipRoles.role, "gym_owner"), isNull(gymMembershipRoles.revokedAt)))
         .orderBy(desc(gymMemberships.createdAt)).limit(20),
-      db.select({ id: platformSubscriptions.id, status: platformSubscriptions.status, packageName: platformPackages.name, priceKobo: platformPackages.priceKobo, customPriceKobo: platformSubscriptions.customPriceKobo, pricingNote: platformSubscriptions.pricingNote, billingInterval: platformPackages.billingInterval, currentPeriodEnd: platformSubscriptions.currentPeriodEnd })
+      db.select({ id: platformSubscriptions.id, status: platformSubscriptions.status, packageName: platformPackages.name, priceKobo: platformPackages.priceKobo, billingInterval: platformPackages.billingInterval, currentPeriodEnd: platformSubscriptions.currentPeriodEnd })
         .from(platformSubscriptions).innerJoin(platformPackages, eq(platformPackages.id, platformSubscriptions.packageId))
         .where(eq(platformSubscriptions.gymId, gymId)).orderBy(desc(platformSubscriptions.createdAt)).limit(1),
       db.select({ action: auditEvents.action, actorLabel: auditEvents.actorLabel, createdAt: auditEvents.createdAt })

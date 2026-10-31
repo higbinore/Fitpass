@@ -401,8 +401,6 @@ export const platformSubscriptions = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     gymId: uuid("gym_id").notNull().references(() => gyms.id, { onDelete: "restrict" }),
     packageId: uuid("package_id").notNull().references(() => platformPackages.id, { onDelete: "restrict" }),
-    customPriceKobo: integer("custom_price_kobo"),
-    pricingNote: text("pricing_note"),
     paymentMode: text("payment_mode").notNull().default("paystack"),
     status: text("status").notNull().default("trialing"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
@@ -410,7 +408,7 @@ export const platformSubscriptions = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [unique("platform_subscriptions_gym_id_unique").on(t.gymId, t.id), uniqueIndex("platform_subscriptions_one_current_per_gym").on(t.gymId).where(sql`${t.status} in ('pending_payment', 'trialing', 'active', 'past_due')`), index("platform_subscriptions_status_period_idx").on(t.status, t.currentPeriodEnd), check("platform_subscription_status_valid", sql`${t.status} in ('pending_payment', 'trialing', 'active', 'past_due', 'cancelled', 'expired')`), check("platform_subscription_payment_mode_valid", sql`${t.paymentMode} in ('paystack', 'demo')`), check("platform_subscription_custom_price_positive", sql`${t.customPriceKobo} is null or ${t.customPriceKobo} > 0`)],
+  (t) => [unique("platform_subscriptions_gym_id_unique").on(t.gymId, t.id), uniqueIndex("platform_subscriptions_one_current_per_gym").on(t.gymId).where(sql`${t.status} in ('pending_payment', 'trialing', 'active', 'past_due')`), index("platform_subscriptions_status_period_idx").on(t.status, t.currentPeriodEnd), check("platform_subscription_status_valid", sql`${t.status} in ('pending_payment', 'trialing', 'active', 'past_due', 'cancelled', 'expired')`), check("platform_subscription_payment_mode_valid", sql`${t.paymentMode} in ('paystack', 'demo')`)],
 );
 
 export const platformPayments = pgTable(
