@@ -1,5 +1,41 @@
 # Local FitPass review demo
 
+## Run the existing migrated review database
+
+For the already-restored and migrated `demo_test` database, use the guarded
+review command below. It is bound to `127.0.0.1:55433/demo_test`; it does not
+run migrations, load `.env` files, or terminate another process using port
+3000. It uses `.next-fitpass-local-review/` so an existing standard Next
+development server cannot block the review server; normal development and
+production builds continue to use `.next`. The guard is preloaded into the
+launcher and its Next.js child process.
+The launcher sets local-only Better Auth and test-mode service values in its
+process environment. Resend calls are written to a gitignored local mail-sink
+file and Paystack network requests are blocked.
+
+```powershell
+$env:PGPASSFILE = Join-Path $env:APPDATA 'postgresql\pgpass.conf'
+$env:DATABASE_URL = 'postgresql://postgres@127.0.0.1:55433/demo_test?sslmode=disable'
+npm run dev:demo
+```
+
+Open `http://localhost:3000`. The four local account emails are
+`platform-admin@fitpass-demo.test`, `gym-owner@fitpass-demo.test`,
+`desk-staff@fitpass-demo.test`, and `gym-member@fitpass-demo.test`. On the
+first guarded startup, the four demo account passwords are rotated locally
+once and stored only in the gitignored
+`.fitpass-local/demo-credentials.json`. If that file already exists, startup
+does not rotate them again. Reset links created during local review are
+written to `.fitpass-local/email-sink.jsonl`. Never commit or share either
+file. `.fitpass-local/` is checked in `.gitignore` before these files are
+created.
+
+The process-level preloader rejects attempts to inspect or read `.env`,
+`.env.*` (including `.env.local.docx`) before touching the filesystem. Do not
+remove the preload or change the exact target guard. `dev:demo` does not use
+the old PostgreSQL port 55432 and refuses any host, port, database, or embedded
+password other than the approved local target.
+
 This demo is for a **disposable local PostgreSQL copy only**. It applies the
 staged Drizzle migration files and then adds clearly marked demo accounts,
 fixed FitPass packages, and a pending DEMO membership checkout. It does not
@@ -98,11 +134,11 @@ The demo email addresses are:
 | Desk staff | `desk-staff@fitpass-demo.test` |
 | Gym member | `gym-member@fitpass-demo.test` |
 
-Use the one-time password printed by the initial `demo:local` run. These
-accounts and the test password are for the disposable local database only.
-Recreate the disposable database from the independent backup to generate a
-new local demo password if it is lost; the script will not rotate existing
-credentials.
+The initial `demo:local` setup generated credentials only if it created the
+demo accounts. The review-server command above has a separate one-time local
+rotation so the credentials are available in an ignored file without printing
+passwords. These accounts and credentials are for disposable local databases
+only.
 
 ## Review the product journeys
 
@@ -125,8 +161,9 @@ the membership. The desk workspace can then verify the code and record a valid
 check-in, subject to the gym's configured daily limit. This simulation does
 not contact Paystack or move money.
 
-Set `FITPASS_PAYMENT_MODE=demo` only in this local PowerShell session before
-starting Next.js, as shown above. This is a mode selector, not a payment
+`dev:demo` sets `FITPASS_PAYMENT_MODE=demo` in its child process. For the
+older manual `demo:local` + `dev` flow, set it only in that local PowerShell
+session before starting Next.js. This is a mode selector, not a payment
 credential. Never set it in production.
 
 ## Safety and verification status

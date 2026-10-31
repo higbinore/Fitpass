@@ -55,3 +55,15 @@ export function parseLocalDemoDatabaseUrl(value: string | undefined): LocalDemoT
     sslMode: url.searchParams.get("sslmode"),
   };
 }
+
+/** Strict target for the long-running review server; never reuse the broader demo/test guard. */
+export function parseLocalReviewServerTarget(value: string | undefined): LocalDemoTarget {
+  const target = parseLocalDemoDatabaseUrl(value);
+  if (target.host !== "127.0.0.1" || target.port !== 55433 || target.database !== "demo_test") {
+    throw new Error("The review server is restricted to 127.0.0.1:55433/demo_test.");
+  }
+  if (target.username !== "postgres" || target.password) {
+    throw new Error("Use the local postgres account through pgpass.conf; do not put a password in DATABASE_URL.");
+  }
+  return target;
+}

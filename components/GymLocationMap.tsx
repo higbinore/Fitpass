@@ -1,9 +1,9 @@
 import { MapPin } from "lucide-react";
+import { buildGoogleMapsDirectionsUrl, buildGoogleMapsEmbedUrl } from "@/lib/google-maps";
 
 export default function GymLocationMap({ name, address, className = "" }: { name: string; address: string | null; className?: string }) {
-  const query = address?.trim() ? `${name}, ${address.trim()}` : "";
-  const mapUrl = query ? `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : null;
-  const directionsUrl = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null;
+  const mapUrl = buildGoogleMapsEmbedUrl(name, address, process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+  const directionsUrl = buildGoogleMapsDirectionsUrl(name, address);
 
   return (
     <div className={className}>
@@ -12,13 +12,16 @@ export default function GymLocationMap({ name, address, className = "" }: { name
           title={`Map for ${name}`}
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
+          allowFullScreen
           className="aspect-video w-full rounded-xl border border-slate-200 bg-slate-100"
           src={mapUrl}
         />
       ) : (
         <p role="status" className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm leading-6 text-slate-600">
           <MapPin className="mr-2 inline-block align-text-bottom text-green-700" size={16} />
-          The gym has not published an address, so a map preview is unavailable.
+          {address?.trim()
+            ? `Map preview is unavailable until the Google Maps Embed API key is configured. Published address: ${address.trim()}`
+            : "The gym has not published an address, so a map preview is unavailable."}
         </p>
       )}
       {directionsUrl && (
