@@ -101,6 +101,7 @@ export default function AdminDashboard() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [resendApprovedOwner, setResendApprovedOwner] = useState<{ gymId: string; email: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -188,9 +189,26 @@ export default function AdminDashboard() {
     if (decision === "approve" && !preferredPackageId) { setError("Choose a FitPass package before approving this application."); return; }
     setBusy(true); setError(""); setNotice("");
     try {
-      await requestJson(`/api/platform/applications/${application.id}`, { method: "PATCH", body: JSON.stringify({ decision, reviewNote, slug: application.requestedSlug, preferredPackageId }) });
-      setNotice(decision === "approve" ? `Approved ${application.gymName}; its owner invitation was sent.` : `Rejected ${application.gymName}'s application.`); await refresh();
+      const result = await requestJson<{ decision: "approve" | "reject"; gym?: { id: string }; invitationEmailSent?: boolean; message?: string }>(`/api/platform/applications/${application.id}`, { method: "PATCH", body: JSON.stringify({ decision, reviewNote, slug: application.requestedSlug, preferredPackageId }) });
+      if (decision === "approve" && result.decision === "approve" && result.invitationEmailSent === false && result.gym) {
+        setNotice("Gym approved. Invitation email failed. Resend invitation.");
+        setResendApprovedOwner({ gymId: result.gym.id, email: application.applicantEmail });
+      } else {
+        setNotice(decision === "approve" ? `Approved ${application.gymName}; its owner invitation was sent.` : `Rejected ${application.gymName}'s application.`);
+        setResendApprovedOwner(null);
+      }
+      await refresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not review the application."); }
+    finally { setBusy(false); }
+  }
+
+  async function resendApprovedInvitation() {
+    if (!resendApprovedOwner) return;
+    setBusy(true); setError("");
+    try {
+      await requestJson(`/api/platform/gyms/${encodeURIComponent(resendApprovedOwner.gymId)}/first-owner-invitation`, { method: "POST", body: JSON.stringify({ email: resendApprovedOwner.email }) });
+      setNotice("Gym approved and the owner invitation was sent."); setResendApprovedOwner(null); await refresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Invitation resend failed. The gym remains approved; retry the invitation."); }
     finally { setBusy(false); }
   }
 
@@ -390,7 +408,7 @@ export default function AdminDashboard() {
 
       <main className="mx-auto max-w-[1500px] space-y-6 px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
         {error && <div role="alert" className="flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p>{error}</p><button onClick={() => void refresh()} className="shrink-0 font-semibold underline">Retry</button></div>}
-        {notice && <div role="status" className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-slate-800"><Check size={17} className="text-green-700" />{notice}</div>}
+        {notice && <div role="status" className={`flex flex-wrap items-center gap-2 rounded-xl border p-4 text-sm font-medium ${resendApprovedOwner ? "border-amber-200 bg-amber-50 text-amber-950" : "border-green-200 bg-green-50 text-slate-800"}`}><Check size={17} className={resendApprovedOwner ? "text-amber-700" : "text-green-700"} /><span>{notice}</span>{resendApprovedOwner && <button type="button" disabled={busy} onClick={() => void resendApprovedInvitation()} className="min-h-10 rounded-lg bg-green-900 px-3 font-bold text-white underline-offset-2 hover:underline disabled:opacity-60">Resend invitation</button>}</div>}
 
         <section id="overview" hidden={activeSection !== "overview"} className="grid min-w-0 overflow-hidden rounded-2xl bg-green-900 text-white shadow-sm lg:grid-cols-[1fr_300px]">
           <div className="px-5 py-7 sm:px-8 sm:py-9"><p className="inline-flex items-center gap-2 rounded-full bg-orange-500/15 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-green-300"><span className="size-1.5 rounded-full bg-orange-500" />FitPass platform</p><h2 className="mt-4 max-w-2xl font-heading text-3xl font-bold leading-tight tracking-tight sm:text-4xl">A stronger community starts with a well-run gym.</h2><p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">Your platform overview brings gym growth, member access and billing into one clear workspace.</p><div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-slate-300"><span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"><span className="size-2 rounded-full bg-orange-500" />Live platform records</span><span>{dateLabel(new Date().toISOString())}</span></div></div>

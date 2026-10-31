@@ -65,10 +65,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ appli
       try {
         await sendGymInvitationEmail(pendingEmail);
       } catch {
-        return NextResponse.json({ ...reviewed, error: "Application approved, but invitation email delivery failed. Issue a replacement invitation from the admin dashboard." }, { status: 502 });
+        try {
+          await getDb().insert(auditEvents).values({ actorUserId: admin.userId, actorLabel: "platform_admin", action: "gym_application.owner_invitation_email_failed", subjectType: "gym_invitation", subjectId: reviewed.decision === "approve" ? reviewed.invitationId : null, metadata: { applicationId, gymId: reviewed.decision === "approve" ? reviewed.gym.id : null } });
+        } catch { /* Approval is committed; preserve its success response even if the secondary audit write fails. */ }
+        if (reviewed.decision === "approve") {
+          return NextResponse.json({ ...reviewed, invitationEmailSent: false, resendInvitationUrl: `/api/platform/gyms/${encodeURIComponent(reviewed.gym.id)}/first-owner-invitation`, message: "Gym approved. Invitation email failed. Resend invitation." });
+        }
       }
     }
-    return NextResponse.json(reviewed);
+    return NextResponse.json(reviewed.decision === "approve" ? { ...reviewed, invitationEmailSent: true } : reviewed);
   } catch (error) {
     const status = error instanceof Error && error.name === "AuthorizationError" ? 403 : 503;
     return NextResponse.json({ error: status === 403 ? "Platform administrator access required." : "Could not review this application right now." }, { status });
