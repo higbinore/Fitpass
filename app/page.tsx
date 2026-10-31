@@ -164,7 +164,7 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-export default async function Home() {
+async function HomeContent() {
   await connection();
   let initialGym: InitialGym | null = null;
   try {
@@ -227,5 +227,13 @@ export default async function Home() {
       <footer className="mt-14 flex flex-col gap-4 rounded-[2rem] bg-green-950 p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8"><div><p className="font-heading text-xl font-bold">FitPass<span className="text-accent">.</span></p><p className="mt-1 text-sm text-white/70">Gym membership, made clear in Benin City.</p></div><Link href="/apply" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-5 font-bold text-slate-950">Run a gym? Apply to FitPass</Link></footer>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<main className="min-h-dvh bg-[#f4f5ef] px-4 py-8 sm:px-6 lg:px-8"><div className="mx-auto max-w-[1440px] rounded-[2rem] bg-white p-6 text-sm text-muted-foreground shadow-sm">Loading FitPass…</div></main>}>
+      <HomeContent />
+    </Suspense>
   );
 }
