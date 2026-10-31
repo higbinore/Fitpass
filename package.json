@@ -7,11 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/authz.test.ts tests/capacity.test.ts tests/paystack-security.test.ts tests/money.test.ts tests/schema-security.test.ts tests/workflow-policy.test.ts tests/trial-policy.test.ts tests/env.test.ts tests/marketplace-policy.test.ts tests/image-validation.test.ts tests/platform-package-policy.test.ts tests/platform-setup-policy.test.ts tests/platform-admin-policy.test.ts tests/password-reset-policy.test.ts tests/daily-checkin-policy.test.ts tests/cron-security.test.ts tests/route-integration.test.ts",
+    "test": "node --experimental-strip-types --test tests/authz.test.ts tests/capacity.test.ts tests/paystack-security.test.ts tests/money.test.ts tests/schema-security.test.ts tests/workflow-policy.test.ts tests/trial-policy.test.ts tests/env.test.ts tests/marketplace-policy.test.ts tests/image-validation.test.ts tests/platform-package-policy.test.ts tests/platform-setup-policy.test.ts tests/platform-admin-policy.test.ts tests/password-reset-policy.test.ts tests/daily-checkin-policy.test.ts tests/cron-security.test.ts tests/demo-local-guard.test.ts tests/route-integration.test.ts",
     "db:push": "drizzle-kit push",
     "db:seed": "node -e \"throw new Error('Global plan seeding is disabled after tenant scoping. Use the reviewed migration to associate the preserved four plan rows with the initial gym.')\"",
     "provision:platform-admin": "tsx scripts/provision-platform-admin.ts",
-    "seed:platform-packages": "tsx scripts/seed-platform-packages.ts"
+    "seed:platform-packages": "tsx scripts/seed-platform-packages.ts",
+    "demo:local": "node --experimental-strip-types scripts/demo-local.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
