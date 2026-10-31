@@ -57,6 +57,8 @@ const paymentEnvSchema = z.object({
   }
 });
 
+const cronEnvSchema = z.object({ CRON_SECRET: z.string().min(16, "CRON_SECRET must be at least 16 characters") });
+
 export type PaymentEnv = z.infer<typeof paymentEnvSchema>;
 
 let cached: Env | null = null;
@@ -116,6 +118,13 @@ export function getPaymentEnv(): PaymentEnv {
     throw new Error(`Payment configuration is incomplete:\n${problems}`);
   }
   return parsed.data;
+}
+
+/** Validates only the cron bearer token without requiring unrelated service secrets. */
+export function getCronSecret(): string {
+  const parsed = cronEnvSchema.safeParse(process.env);
+  if (!parsed.success) throw new Error("Cron configuration is incomplete: CRON_SECRET is required.");
+  return parsed.data.CRON_SECRET;
 }
 
 /**
