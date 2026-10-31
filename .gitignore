@@ -35,6 +35,7 @@ yarn-error.log*
 !.env.example
 # exported credentials must never be committed
 env.local.docx
+.fitpass-local/
 
 # vercel
 .vercel
