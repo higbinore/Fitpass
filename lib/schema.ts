@@ -91,6 +91,8 @@ export const gyms = pgTable(
     contactPhone: text("contact_phone"),
     contactEmail: text("contact_email"),
     location: text("location"),
+    description: text("description"),
+    openingHours: text("opening_hours"),
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
     locationVerifiedAt: timestamp("location_verified_at", { withTimezone: true }),

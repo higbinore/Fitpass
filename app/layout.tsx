@@ -19,7 +19,7 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "FitPass — Gym membership in Benin City",
   description:
-    "Buy a gym plan, get your FitPass code, and check in at the desk in seconds. FitPass Gym, Adesuwa Road, GRA, Benin City.",
+    "Discover participating gyms in Benin City, compare their published membership plans, and keep your FitPass membership details ready for check-in.",
 };
 
 export const viewport: Viewport = {

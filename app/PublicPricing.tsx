@@ -65,6 +65,6 @@ export default function PublicPricing() {
         <div className="mt-4 flex-1 border-t border-slate-100 pt-4"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Configured features</p>{enabledFeatures.length ? <ul className="mt-2 space-y-1.5">{enabledFeatures.map((feature) => <li key={feature} className="text-sm text-slate-700">✓ {feature}</li>)}</ul> : <p className="mt-2 text-sm leading-5 text-slate-600">Ask FitPass about the features available for this package.</p>}</div>
       </li>;
     })}</ul>}
-    <p className="mt-5 text-sm text-white/75">Custom negotiated pricing or discounts may be arranged where applicable. Final pricing is confirmed with FitPass.</p>
+    <p className="mt-5 text-sm text-white/75">All packages are billed monthly at the published fixed price.</p>
   </section>;
 }
