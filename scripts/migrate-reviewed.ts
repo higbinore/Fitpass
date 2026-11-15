@@ -25,7 +25,7 @@ const PLAN_FIXTURES = [
 const LEGACY_TABLES = ["plans", "members", "subscriptions", "payments", "checkins"] as const;
 
 type JournalEntry = { idx: number; tag: string; when: number };
-type RunnerArgs = { mode: MigrationRunMode; allowSqlFallback: boolean; confirmBackup: boolean; backupFile: string; backupSha256: string };
+type RunnerArgs = { mode: MigrationRunMode; allowSqlFallback: boolean; userinfoShim: boolean; confirmBackup: boolean; backupFile: string; backupSha256: string };
 
 function fail(message: string): never {
   throw new Error(message);
@@ -37,6 +37,7 @@ function parseArgs(args: string[]): RunnerArgs {
   if (production === rehearsal) fail("Choose exactly one mode: --local-rehearsal or --confirm-production.");
   const allowSqlFallback = args.includes("--allow-sql-fallback");
   if (allowSqlFallback && !production) fail("--allow-sql-fallback is only meaningful with --confirm-production.");
+  const userinfoShim = args.includes("--userinfo-shim");
   const confirmBackup = args.includes("--confirm-backup");
   if (production && !confirmBackup) fail("Production mode requires --confirm-backup after fresh backup verification.");
   const backupFileIndex = args.indexOf("--backup-file");
@@ -44,13 +45,14 @@ function parseArgs(args: string[]): RunnerArgs {
   if (backupFileIndex < 0 || backupHashIndex < 0 || !args[backupFileIndex + 1] || !args[backupHashIndex + 1]) {
     fail("A verified backup is required: provide --backup-file and --backup-sha256.");
   }
-  const known = new Set(["--local-rehearsal", "--confirm-production", "--confirm-backup", "--allow-sql-fallback", "--backup-file", args[backupFileIndex + 1], "--backup-sha256", args[backupHashIndex + 1]]);
+  const known = new Set(["--local-rehearsal", "--confirm-production", "--confirm-backup", "--allow-sql-fallback", "--userinfo-shim", "--backup-file", args[backupFileIndex + 1], "--backup-sha256", args[backupHashIndex + 1]]);
   if (args.some((arg) => !known.has(arg))) fail("Migration runner received an unsupported argument.");
   const backupSha256 = args[backupHashIndex + 1].toLowerCase();
   if (!/^[a-f0-9]{64}$/.test(backupSha256)) fail("--backup-sha256 must be a 64-character hexadecimal SHA-256.");
   return {
     mode: production ? "production" : "local-rehearsal",
     allowSqlFallback,
+    userinfoShim,
     confirmBackup,
     backupFile: resolve(args[backupFileIndex + 1]),
     backupSha256,
@@ -113,13 +115,19 @@ function loadJournal(): JournalEntry[] {
   return journal.entries;
 }
 
-function safeChildEnv(databaseUrl: string): NodeJS.ProcessEnv {
+function safeChildEnv(databaseUrl: string, userinfoShim = false): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { DATABASE_URL: databaseUrl, NODE_ENV: "production" };
   for (const key of ["PATH", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "APPDATA", "PGPASSFILE", "USERPROFILE", "HOME", "ProgramFiles"]) {
     if (process.env[key]) env[key] = process.env[key];
   }
   const guard = resolve(ROOT, "scripts/dev-demo-preload.cjs").replaceAll("\\", "/");
-  env.NODE_OPTIONS = `--require="${guard}"`;
+  const preloads = [`--require="${guard}"`];
+  if (userinfoShim) {
+    const shim = resolve(ROOT, "scripts/os-userinfo-shim.cjs").replaceAll("\\", "/");
+    preloads.push(`--require="${shim}"`);
+    env.FITPASS_OS_USERINFO_SHIM = "1";
+  }
+  env.NODE_OPTIONS = preloads.join(" ");
   return env;
 }
 
@@ -177,16 +185,17 @@ async function readLegacyCounts(client: PoolClient) {
   return counts;
 }
 
-function runDrizzle(node22: string, databaseUrl: string): { ok: boolean; diagnostic: string } {
+function runDrizzle(node22: string, databaseUrl: string, userinfoShim: boolean): { ok: boolean; diagnostic: string } {
   const drizzleKit = resolve(ROOT, "node_modules/drizzle-kit/bin.cjs");
   if (!existsSync(drizzleKit)) return { ok: false, diagnostic: "Installed Drizzle Kit executable is missing." };
-  const version = spawnSync(node22, ["--version"], { cwd: ROOT, env: safeChildEnv(databaseUrl), windowsHide: true, encoding: "utf8" });
+  const childEnv = safeChildEnv(databaseUrl, userinfoShim);
+  const version = spawnSync(node22, ["--version"], { cwd: ROOT, env: childEnv, windowsHide: true, encoding: "utf8" });
   if (version.error || version.status !== 0 || !/^v22\./.test((version.stdout ?? "").trim())) {
     return { ok: false, diagnostic: "The configured side-by-side Node runtime is not Node 22." };
   }
   const result = spawnSync(node22, [drizzleKit, "migrate", "--config=drizzle.config.ts"], {
     cwd: ROOT,
-    env: safeChildEnv(databaseUrl),
+    env: childEnv,
     windowsHide: true,
     encoding: "utf8",
     maxBuffer: 16 * 1024 * 1024,
@@ -308,7 +317,8 @@ async function main() {
       process.env.LOCALAPPDATA ?? "",
       "FitPassTools", "node-v22.23.4", "node-v22.23.4-win-x64", "node.exe",
     );
-    const drizzle = runDrizzle(node22, databaseUrl!);
+    if (args.userinfoShim) process.stdout.write("Windows os.userInfo ENOMEM shim enabled for the Drizzle Kit child process only.\n");
+    const drizzle = runDrizzle(node22, databaseUrl!, args.userinfoShim);
     if (!drizzle.ok) {
       if (!mayUseSqlFallback(args.mode, args.allowSqlFallback)) {
         fail(`Drizzle Kit migration failed; production SQL fallback is disabled. ${scrub(drizzle.diagnostic, databaseUrl!)}`.trim());
